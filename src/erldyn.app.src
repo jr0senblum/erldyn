@@ -1,0 +1,22 @@
+{application, 'erldyn',
+ [{description, "Amazon DynamoDB driver"},
+  {vsn, "v0.5.0"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  sasl, 
+                  stdlib, 
+                  syntax_tools,
+                  compiler,
+                  lager,
+                  jsone,
+                  inets,
+                  ssl
+                 ]},
+  {env,[]},
+  {modules, [erldyn]},
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.
