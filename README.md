@@ -1,19 +1,19 @@
 erldyn
 =====
 
-A Library module for interactin with Amazon's DynamoDB
+A Library module for interacting with Amazon's DynamoDB.
 
 DynamoDb functions are converted to underscore_case functions of arity 1.
-The parameter is JSON as defined by the DynamoDB API and the returns are
-map versions of the DnamoDB JSON returns. 
+The parameter is JSON as defined by the DynamoDB API, and the returns are
+map versions of the DynamoDB, JSON returns. 
 
 The batch functions (batch_get_item/1 and batch_write_item/1) can return
 partial results. The unprocessed items will be resubmitted so these
-functions return a list of maps - one for each returned partial result.
+functions return a list of maps - one for each returned, partial result.
 
 Exponentional back-off is used such that appropriate failures, or partial
-results, are retried according to the back-off algorithm, not to exceed one
-minute total for the entire operation.
+results, are retried according to an exponential, back-off algorithm, not 
+to exceed one minute total for the entire operation.
 
 All http operations are PUTS, and Version 4 of the Signature authorizaion
 header is used.
