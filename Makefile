@@ -5,7 +5,8 @@ REBAR=$(shell which rebar || echo ./rebar3)
 # eventually this should be just ebin/*.beam, but there are a number
 # of warnings in other files. Just check the clean files for now.
 CHECK_FILES=\
-     _build/default/lib/*/ebin
+     _build/default/lib/erldyn/ebin 
+
 
 
 all: clean compile
@@ -21,13 +22,11 @@ run:
 
 
 check: compile
-	dialyzer --build_plt -r $ERL_TOP/lib/stdlib/ebin\
-                                $ERL_TOP/lib/kernel/ebin \
-                                $ERL_TOP/lib/mnesia/ebin --verbose --no_check_plt --no_native --fullpath \
+	dialyzer --no_native --fullpath \
 		$(CHECK_FILES) \
 		-Wunmatched_returns \
-		-Werror_handling
+		-Werror_handling 
 
 doc:
-	@$(REBAR) doc skip_deps=true
+	@$(REBAR) edoc
 

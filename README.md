@@ -5,12 +5,15 @@ A Library module for interactin with Amazon's DynamoDB
 
 DynamoDb functions are converted to underscore_case functions of arity 1.
 The parameter is JSON as defined by the DynamoDB API and the returns are
-map versions of the DnamoDB JSON returns. The batch functions return a
-list of maps - one for each return.
+map versions of the DnamoDB JSON returns. 
 
-Exponentional back-off is uses such that appropriate failures or partial
+The batch functions (batch_get_item/1 and batch_write_item/1) can return
+partial results. The unprocessed items will be resubmitted so these
+functions return a list of maps - one for each returned partial results.
+
+Exponentional back-off is used such that appropriate failures or partial
 results are retried according to the back-off algorithm, not to exceed one
-minute total for the opperationl
+minute total for the opperation.
 
 All http opperations are PUTS and Version 4 of the Signature authorizaion
 header is used.
@@ -19,7 +22,11 @@ header is used.
 Build
 -----
 erldyn uses rebar3
+
     $ make compile
+    $ make doc
+    $ make check
+    
 
 Running
 -------
@@ -37,8 +44,8 @@ Running
     ... SNIP ...
     {ok,[sasl,syntax_tools,compiler,goldrush,lager,jsone,inets,
      crypto,asn1,public_key,ssl,erldyn]}
+
     2> erldyn:config(#{endpoint => "https://dynamodb.us-west-2.amazonaws.com/"}).
     3> erldyn:list_tables("{}").
-    {ok,#{<<"TableNames">> => [<<"Forum">>,<<"Reply">>,<<"Thread">>,<<"Wizzards">>]}}ok
+    {ok,#{<<"TableNames">> => [<<"Forum">>,<<"Reply">>,<<"Thread">>,<<"Wizzards">>]}}
     
-

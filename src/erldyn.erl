@@ -6,12 +6,15 @@
 %%%
 %%% DynamoDb functions are converted to underscore_case functions of arity 1.
 %%% The parameter is JSON as defined by the DynamoDB API and the returns are
-%%% map versions of the DnamoDB JSON returns. The batch functions return a
-%%% list of maps - one for each return.
+%%% map versions of the DnamoDB JSON returns. 
 %%% 
-%%% Exponentional back-off is uses such that appropriate failures or partial
+%%% The batch functions (batch_get_item/1 and batch_write_item/1) can return
+%%% partial results. The unprocessed items will be resubmitted so these
+%%% functions return a list of maps - one for each returned partial results.
+%%%
+%%% Exponentional back-off is used such that appropriate failures or partial
 %%% results are retried according to the back-off algorithm, not to exceed one
-%%% minute total for the opperationl
+%%% minute total for the opperation.
 %%%
 %%% All http opperations are PUTS and Version 4 of the Signature authorizaion
 %%% header is used.
@@ -46,14 +49,21 @@
 
 -define(METHOD, "POST").
 -define(ENDPOINT, "https://dynamodb.us-west-2.amazonaws.com/").
-
 -define(API_VERSION, "DynamoDB_20120810.").
 -define(API_SVERSION, "DynamoDBStreams_20120810.").
-
-
+                
 %% -----------------------------------------------------------------------------
-%% @doc Use values within map for Host, Key and Secret can be passed in or
-%% provided via exported envionment variables. 
+%% @doc Use values within map for Host. Key and Secret can be provided in the
+%% map or via exported envionment variables. 
+%%
+%% PROCESS DICTIONARY IS USED
+%%   put(access_key, ...)
+%%   put(secret_key, ..)
+%%   put(stream_endpoint, ...)
+%%   put(endpoint, ...)
+%%   put(host, ...)
+%%   put(service, ..)
+%%   put(region, ..),
 %%
 -spec config(map()) -> ok.
 
@@ -62,96 +72,105 @@ config(Config) ->
     put(secret_key, maps:get(secret_key, Config, get_secret_key())),
 
     EndPoint = maps:get(endpoint, Config, ?ENDPOINT),
-    [_, Host] = string:tokens(EndPoint,"//"),
-    [Service, Region, _, _] = string:tokens(Host, "."),
+    [Protocol, Host] = string:tokens(EndPoint,"//"),
+    TokenizedHost = string:tokens(Host, "."),
+    Service = lists:nth(1,TokenizedHost),
+    Region = lists:nth(2,TokenizedHost),
+    SEndpoint = lists:flatten([Protocol, "//", "streams.",string:join(TokenizedHost, ".")]),
 
-    
     put(endpoint, EndPoint),
     put(host, Host),
-    put(service, Service),
     put(region, Region),
+    put(service, Service),
+    put(stream_endpoint, SEndpoint),   
     ok.
 
 
+
 %% -----------------------------------------------------------------------------
-%% DynamoDB API: Dynamo functions are converted to underscore_case. If an API
-%% can accept 0 paramerts, a 0-arity funciton is provided otherwise there will
-%% be an arity-1 function that expects the same JSON that DynamoDB uses.
+%% DynamoDB API: Dynamo functions are converted to underscore_case of arity/1
+%% expecting JSON per DynamoDB API.
 %% -----------------------------------------------------------------------------
 
+-type repeat_return() :: [{'ok',#{}},...] | {'error',#{}}.
+-type results() :: {'error',#{}} | {'ok',#{}}.
 
--spec batch_get_item(JSON::string()) -> map() | [map()].
+
+-spec batch_get_item(JSON::string()) -> repeat_return().
 batch_get_item(JSON) -> 
-    repeat(make_api_target("BatchGetItem"), JSON).
+    repeat("BatchGetItem", JSON, []).
 
 
--spec batch_write_item(JSON::string()) -> map() | [map()].
+-spec batch_write_item(JSON::string()) -> repeat_return().
 batch_write_item(JSON) -> 
-    repeat(make_api_target("BatchWriteItem"), JSON).
+    repeat("BatchWriteItem", JSON, []).
 
 
--spec create_table(JSON::string()) -> map().
-create_table(JSON) -> execute_command(make_api_target("CreateTable"), JSON).
+-spec create_table(JSON::string()) -> results().
+
+create_table(JSON) -> execute_command("CreateTable", JSON).
 
 
--spec delete_item(JSON::string()) -> map().
-delete_item(JSON) -> execute_command(make_api_target("DeleteItem"), JSON).
+-spec delete_item(JSON::string()) -> results().
+delete_item(JSON) -> execute_command("DeleteItem", JSON).
 
 
--spec delete_table(JSON::string()) -> map().
-delete_table(JSON) -> execute_command(make_api_target("DeleteTable"), JSON).
+-spec delete_table(JSON::string()) -> results().
+delete_table(JSON) -> execute_command("DeleteTable", JSON).
 
 
--spec describe_table(JSON::string()) -> map().
-describe_table(JSON) -> execute_command(make_api_target("DescribeTable"), JSON).
+-spec describe_table(JSON::string()) -> results().
+describe_table(JSON) -> execute_command("DescribeTable", JSON).
 
 
--spec get_item(JSON::string()) -> map().
-get_item(JSON) -> execute_command(make_api_target("GetItem"), JSON).
+-spec get_item(JSON::string()) -> results().
+get_item(JSON) -> execute_command("GetItem", JSON).
 
 
--spec list_tables(JSON::string()) -> map().
-list_tables(JSON) ->  execute_command(make_api_target("ListTables"), JSON).
+-spec list_tables(JSON::string()) -> results().
+list_tables(JSON) ->  execute_command("ListTables", JSON).
 
 
--spec put_item(JSON::string()) -> map().
-put_item(JSON) ->  execute_command(make_api_target("PutItem"), JSON).
+-spec put_item(JSON::string()) -> results().
+put_item(JSON) ->  execute_command("PutItem", JSON).
 
 
--spec query(JSON::string()) -> map().
-query(JSON) ->  execute_command(make_api_target("Query"), JSON).
+-spec query(JSON::string()) -> results().
+query(JSON) ->  execute_command("Query", JSON).
 
 
--spec scan(JSON::string()) -> map().
-scan(JSON) ->  execute_command(make_api_target("Scan"), JSON).
+-spec scan(JSON::string()) -> results().
+scan(JSON) ->  execute_command("Scan", JSON).
 
 
--spec update_item(JSON::string()) -> map().
-update_item(JSON) ->  execute_command(make_api_target("UpdateItem"), JSON).
+-spec update_item(JSON::string()) -> results().
+update_item(JSON) ->  execute_command("UpdateItem", JSON).
 
 
--spec update_table(JSON::string()) -> map().
-update_table(JSON) ->  execute_command(make_api_target("UpdateTable"), JSON).
+-spec update_table(JSON::string()) -> results().
+update_table(JSON) ->  execute_command("UpdateTable", JSON).
 
 
--spec list_streams(JSON::string()) -> map().
-list_streams(JSON) ->  execute_command(make_api_stream_target("ListStreams"), JSON).
+-spec list_streams(JSON::string()) -> results().
+list_streams(JSON) ->  execute_command("ListStreams", JSON, stream).
 
 
 %% -----------------------------------------------------------------------------
 %% Batch commands can return an UnprocessedItems component which should be
 %% retried. Execute_command uses an exponential back-off per best-practive.
 %%
-repeat(Target, JSON) ->
-    case execute_command(Target, JSON) of
+
+-spec repeat(string(), string()|binary(),[{ok,#{}},...] | []) -> repeat_return().
+repeat(Command, JSON, Acc) ->
+    case execute_command(Command, JSON) of
         {ok, Map} = R ->
             case maps:get(<<"UnprocessedItems">>, Map, none) of
                 none -> 
-                    R;
+                    [R | Acc];
                 #{} ->
-                    R;
+                    [R | Acc];
                 Unprocessed -> 
-                    [R | repeat(Target, jsone:encode(Unprocessed))]
+                    repeat(Command, jsone:encode(Unprocessed), [R | Acc])
             end;
         {error, _Map} = RError ->
             RError
@@ -164,15 +183,28 @@ repeat(Target, JSON) ->
 %% Singature Version 4 Authorization header and then using httpc to perform
 %% the PUT.
 %% 
-execute_command(Target, JSON) ->
+execute_command(Command, JSON) ->
+    execute_command(Command, JSON, not_stream).
+
+execute_command(Command, JSON, IsStream) ->
+    Endpoint = get_endpoint(IsStream),
+    Target = get_target(Command, IsStream),
     ReqParam = JSON,
     Uri = "/",
     QS = "",
     Headers = authorization_header(Target, ReqParam, Uri, QS),
-    back_off_post(1, ReqParam, Headers, get(endpoint)).
+    back_off_post(1, ReqParam, Headers, Endpoint).
 
+get_endpoint(stream) ->
+    get(stream_endpoint);
+get_endpoint(_) ->
+    get(endpoint).
 
-
+get_target(Command, stream) ->
+    make_api_stream_target(Command);
+get_target(Command, _) ->
+    make_api_target(Command).
+    
 %% -----------------------------------------------------------------------------
 %% Exponential back-off on failure until successful, or 60 seconds.
 %% -----------------------------------------------------------------------------
@@ -181,7 +213,7 @@ execute_command(Target, JSON) ->
          orelse 
            (E == "ProvisionedThroughputExceededException")).
 
-
+-spec back_off_post(non_neg_integer(), string(), [tuple()], string()) -> {ok|error, map()}.
 back_off_post(N, Body, Headers, EndPoint) ->
     case post_msg(Body, Headers, EndPoint) of
         ({ok, {{_, 200, "OK"}, _, JSON}}) ->
@@ -211,7 +243,7 @@ back_off(N) ->
 
 post_msg(PostBody, Headers, EndPoint)->
     ContentType = "application/x-amz-json-1.0",
-    
+    io:format("~p~n", [Headers]),
     HTTPOptions = [{timeout, 30000}, {relaxed, true}],
     Options = [{body_format, binary}],
     httpc:request(post, {EndPoint, Headers, ContentType, PostBody},  
