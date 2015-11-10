@@ -24,9 +24,6 @@
 %%% @end
 %%% Created : 16 November 2015 by Jim Rosenblum
 %%% ----------------------------------------------------------------------------
-
-
-
 -module(erldyn).
 
 -export([config/1]).
@@ -52,24 +49,27 @@
          get_shard_iterator/1,
          list_streams/1]).
 
-
 -define(METHOD, "POST").
+
 -define(ENDPOINT, "https://dynamodb.us-west-2.amazonaws.com/").
 -define(API_VERSION, "DynamoDB_20120810.").
 -define(API_SVERSION, "DynamoDBStreams_20120810.").
+
+
                 
 %% -----------------------------------------------------------------------------
-%% @doc Use values within map for Host. Key and Secret can be provided in the
-%% map or via exported envionment variables. 
+%% @doc Use values within map for Host, and optionally,  Key and Secret which
+%% can alternatively be provided via exported envionment variables:
+%% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY".
 %%
-%% PROCESS DICTIONARY IS USED
+%% PROCESS DICTIONARY IS USED VALUES ARE CHANGED VIA CONFIG/1
 %%   put(access_key, ...)
 %%   put(secret_key, ..)
 %%   put(stream_endpoint, ...)
 %%   put(endpoint, ...)
 %%   put(host, ...)
 %%   put(service, ..)
-%%   put(region, ..),
+%%   put(region, ..)
 %%
 -spec config(map()) -> ok.
 
@@ -98,22 +98,21 @@ config(Config) ->
 %% expecting JSON per DynamoDB API.
 %% -----------------------------------------------------------------------------
 
--type repeat_return() :: [{'ok',#{}},...] | {'error',#{}}.
+-type batch_return() :: [{'ok',#{}},...] | {'error',#{}}.
 -type results() :: {'error',#{}} | {'ok',#{}}.
 
 
--spec batch_get_item(JSON::string()) -> repeat_return().
+-spec batch_get_item(JSON::string()) -> batch_return().
 batch_get_item(JSON) -> 
-    repeat("BatchGetItem", JSON, []).
+    unitl_done("BatchGetItem", JSON, []).
 
 
--spec batch_write_item(JSON::string()) -> repeat_return().
+-spec batch_write_item(JSON::string()) -> batch_return().
 batch_write_item(JSON) -> 
-    repeat("BatchWriteItem", JSON, []).
+    unitl_done("BatchWriteItem", JSON, []).
 
 
 -spec create_table(JSON::string()) -> results().
-
 create_table(JSON) -> execute_command("CreateTable", JSON).
 
 
@@ -158,17 +157,26 @@ update_table(JSON) ->  execute_command("UpdateTable", JSON).
 
 
 
+%% -----------------------------------------------------------------------------
+%% DynamoDBStream API: Dynamo functions are converted to underscore_case of 
+%% arity/1 expecting JSON per DynamoDB API.
+%% -----------------------------------------------------------------------------
+
 -spec describe_stream(JSON::string()) -> results().
 describe_stream(JSON) ->  execute_command("DescribeStream", JSON, stream).
+
 
 -spec get_records(JSON::string()) -> results().
 get_records(JSON) ->  execute_command("GetRecords", JSON, stream).
 
+
 -spec get_shard_iterator(JSON::string()) -> results().
 get_shard_iterator(JSON) ->  execute_command("GetShardIterator", JSON, stream).
 
+
 -spec list_streams(JSON::string()) -> results().
 list_streams(JSON) ->  execute_command("ListStreams", JSON, stream).
+
 
 
 %% -----------------------------------------------------------------------------
@@ -176,8 +184,8 @@ list_streams(JSON) ->  execute_command("ListStreams", JSON, stream).
 %% retried. Execute_command uses an exponential back-off per best-practive.
 %%
 
--spec repeat(string(), string()|binary(),[{ok,#{}},...] | []) -> repeat_return().
-repeat(Command, JSON, Acc) ->
+-spec unitl_done(string(), string()|binary(),[{ok,#{}},...] | []) -> batch_return().
+unitl_done(Command, JSON, Acc) ->
     case execute_command(Command, JSON) of
         {ok, Map} = R ->
             case maps:get(<<"UnprocessedItems">>, Map, none) of
@@ -186,7 +194,7 @@ repeat(Command, JSON, Acc) ->
                 #{} ->
                     [R | Acc];
                 Unprocessed -> 
-                    repeat(Command, jsone:encode(Unprocessed), [R | Acc])
+                    unitl_done(Command, jsone:encode(Unprocessed), [R | Acc])
             end;
         {error, _Map} = RError ->
             RError
@@ -211,16 +219,26 @@ execute_command(Command, JSON, IsStream) ->
     Headers = authorization_header(Target, ReqParam, Uri, QS),
     back_off_post(1, ReqParam, Headers, Endpoint).
 
+
 get_endpoint(stream) ->
     get(stream_endpoint);
 get_endpoint(_) ->
     get(endpoint).
 
+
 get_target(Command, stream) ->
     make_api_stream_target(Command);
 get_target(Command, _) ->
     make_api_target(Command).
-    
+
+
+make_api_target(Command) ->
+    ?API_VERSION ++ Command.
+
+make_api_stream_target(Command) ->
+    ?API_SVERSION ++ Command.
+
+
 %% -----------------------------------------------------------------------------
 %% Exponential back-off on failure until successful, or 60 seconds.
 %% -----------------------------------------------------------------------------
@@ -228,6 +246,7 @@ get_target(Command, _) ->
 -define (AGAIN(Cd, E), (Cd >= 500 andalso Cd < 600) 
          orelse 
            (E == "ProvisionedThroughputExceededException")).
+
 
 -spec back_off_post(non_neg_integer(), string(), [tuple()], string()) -> {ok|error, map()}.
 back_off_post(N, Body, Headers, EndPoint) ->
@@ -256,23 +275,17 @@ back_off(N) ->
     end.
 
 
-
 post_msg(PostBody, Headers, EndPoint)->
     ContentType = "application/x-amz-json-1.0",
-    io:format("~p~n", [Headers]),
     HTTPOptions = [{timeout, 30000}, {relaxed, true}],
     Options = [{body_format, binary}],
     httpc:request(post, {EndPoint, Headers, ContentType, PostBody},  
                   HTTPOptions, Options).
 
 
-
-
-
-
-
-
-
+%% -----------------------------------------------------------------------------
+%% Calculate the authorization header per Amazon's V4 Signature instructions.
+%%
 authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     Alg = "AWS4-HMAC-SHA256",    
     Amzdate = format_iso8601(),
@@ -301,7 +314,6 @@ authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     [{"Authorization", Auth} | H].
 
 
-
 %% To create the canonical headers list, convert all header names to lowercase 
 %% and trim excess white space characters out of the header values. When you 
 %% trim, remove leading spaces and trailing spaces, and convert sequential 
@@ -316,7 +328,6 @@ normalize(H, V) ->
     [string:strip(string:to_lower(H)),
      ":",
      string:strip(V)].
-
 
 
 %% Signed Headers are a list of the names of the headers included in the 
@@ -335,7 +346,6 @@ signed_headers(Headers) ->
 %%   CanonicalHeaders + '\n' +
 %%   SignedHeaders + '\n' +
 %%   HexEncode(Hash(RequestPayload))
-
 canonical_request(Method, H, ReqParam, Uri, Qs, SignedHeaders) ->
     Headers = canonical_headers(H),
     PayloadHash = payload_hash(ReqParam),
@@ -384,13 +394,13 @@ get_signature_key(Key, Date, Region, Service) ->
     [Alg, " ", "Credential=", Access, "/", Scope, ", "
     , "SignedHeaders=", SignedHeaders, ", ", "Signature=", Sig].
 
+
 payload_hash(Payload) ->
     base16(crypto:hash(sha256, Payload)).
     
 
 base16(Data) ->
     io_lib:format("~64.16.0b", [binary:decode_unsigned(Data)]).
-
 
 
 format_iso8601() ->
@@ -400,13 +410,6 @@ format_iso8601() ->
     lists:flatten(io_lib:format(
                     "~.4.0w~.2.0w~.2.0wT~.2.0w~.2.0w~.2.0wZ",
                     [Year, Month, Day, Hour, Min, Sec] )).
-
-
-make_api_target(Command) ->
-    ?API_VERSION ++ Command.
-
-make_api_stream_target(Command) ->
-    ?API_SVERSION ++ Command.
 
 
 get_access_key()->
