@@ -1,4 +1,31 @@
+%%% ----------------------------------------------------------------------------
+%%% @author Jim Rosenblum
+%%% @copyright (C) 2015 - 2016, Jim Rosenblum
+%%% @doc Libary module for interacting with Amazon's DynamoDB. The entire
+%%% 20120810 API is implemented.
+%%%
+%%% DynamoDb functions are converted to underscore_case functions of arity 1.
+%%% The parameter is JSON as defined by the DynamoDB API and the returns are
+%%% map versions of the DnamoDB JSON returns. The batch functions return a
+%%% list of maps - one for each return.
+%%% 
+%%% Exponentional back-off is uses such that appropriate failures or partial
+%%% results are retried according to the back-off algorithm, not to exceed one
+%%% minute total for the opperationl
+%%%
+%%% All http opperations are PUTS and Version 4 of the Signature authorizaion
+%%% header is used.
+%%%
+%%% @version {@version}
+%%% @end
+%%% Created : 16 November 2015 by Jim Rosenblum
+%%% ----------------------------------------------------------------------------
+
+
+
 -module(erldyn).
+
+-export([config/1]).
 
 -export([batch_get_item/1,
          batch_write_item/1,
@@ -14,17 +41,36 @@
          update_item/1,
          update_table/1]).
 
--export([describe_streams/1]).
+-export([list_streams/1]).
 
 
 -define(METHOD, "POST").
 -define(ENDPOINT, "https://dynamodb.us-west-2.amazonaws.com/").
--define(HOST, "dynamodb.us-west-2.amazonaws.com").
--define(REGION, "us-west-2").
--define(SERVICE, "dynamodb").                    
--define(API_VERSION, "DynamoDB_20120810.").
--define(MAXRETRY, 5).
 
+-define(API_VERSION, "DynamoDB_20120810.").
+-define(API_SVERSION, "DynamoDBStreams_20120810.").
+
+
+%% -----------------------------------------------------------------------------
+%% @doc Use values within map for Host, Key and Secret can be passed in or
+%% provided via exported envionment variables. 
+%%
+-spec config(map()) -> ok.
+
+config(Config) ->
+    put(access_key, maps:get(access_key, Config, get_access_key())),
+    put(secret_key, maps:get(secret_key, Config, get_secret_key())),
+
+    EndPoint = maps:get(endpoint, Config, ?ENDPOINT),
+    [_, Host] = string:tokens(EndPoint,"//"),
+    [Service, Region, _, _] = string:tokens(Host, "."),
+
+    
+    put(endpoint, EndPoint),
+    put(host, Host),
+    put(service, Service),
+    put(region, Region),
+    ok.
 
 
 %% -----------------------------------------------------------------------------
@@ -36,57 +82,60 @@
 
 -spec batch_get_item(JSON::string()) -> map() | [map()].
 batch_get_item(JSON) -> 
-    repeat("BatchGetItem", JSON).
+    repeat(make_api_target("BatchGetItem"), JSON).
 
 
 -spec batch_write_item(JSON::string()) -> map() | [map()].
 batch_write_item(JSON) -> 
-    repeat("BatchWriteItem", JSON).
+    repeat(make_api_target("BatchWriteItem"), JSON).
 
 
 -spec create_table(JSON::string()) -> map().
-create_table(JSON) -> execute_command("CreateTable", JSON).
+create_table(JSON) -> execute_command(make_api_target("CreateTable"), JSON).
 
 
 -spec delete_item(JSON::string()) -> map().
-delete_item(JSON) -> execute_command("DeleteItem", JSON).
+delete_item(JSON) -> execute_command(make_api_target("DeleteItem"), JSON).
 
 
 -spec delete_table(JSON::string()) -> map().
-delete_table(JSON) -> execute_command("DeleteTable", JSON).
+delete_table(JSON) -> execute_command(make_api_target("DeleteTable"), JSON).
 
 
 -spec describe_table(JSON::string()) -> map().
-describe_table(JSON) -> execute_command("DescribeTable", JSON).
+describe_table(JSON) -> execute_command(make_api_target("DescribeTable"), JSON).
 
 
 -spec get_item(JSON::string()) -> map().
-get_item(JSON) -> execute_command("GetItem", JSON).
+get_item(JSON) -> execute_command(make_api_target("GetItem"), JSON).
 
 
 -spec list_tables(JSON::string()) -> map().
-list_tables(JSON) ->  execute_command("ListTables", JSON).
+list_tables(JSON) ->  execute_command(make_api_target("ListTables"), JSON).
 
 
 -spec put_item(JSON::string()) -> map().
-put_item(JSON) ->  execute_command("PutItem", JSON).
+put_item(JSON) ->  execute_command(make_api_target("PutItem"), JSON).
 
 
 -spec query(JSON::string()) -> map().
-query(JSON) ->  execute_command("Query", JSON).
+query(JSON) ->  execute_command(make_api_target("Query"), JSON).
 
 
 -spec scan(JSON::string()) -> map().
-scan(JSON) ->  execute_command("Scan", JSON).
+scan(JSON) ->  execute_command(make_api_target("Scan"), JSON).
 
 
 -spec update_item(JSON::string()) -> map().
-update_item(JSON) ->  execute_command("UpdateItem", JSON).
+update_item(JSON) ->  execute_command(make_api_target("UpdateItem"), JSON).
 
 
 -spec update_table(JSON::string()) -> map().
-update_table(JSON) ->  execute_command("UpdateTable", JSON).
+update_table(JSON) ->  execute_command(make_api_target("UpdateTable"), JSON).
 
+
+-spec list_streams(JSON::string()) -> map().
+list_streams(JSON) ->  execute_command(make_api_stream_target("ListStreams"), JSON).
 
 
 %% -----------------------------------------------------------------------------
@@ -115,13 +164,12 @@ repeat(Target, JSON) ->
 %% Singature Version 4 Authorization header and then using httpc to perform
 %% the PUT.
 %% 
-execute_command(Command, JSON) ->
-    Target = make_target(Command),
+execute_command(Target, JSON) ->
     ReqParam = JSON,
     Uri = "/",
     QS = "",
     Headers = authorization_header(Target, ReqParam, Uri, QS),
-    back_off_post(1, ReqParam, Headers, ?ENDPOINT).
+    back_off_post(1, ReqParam, Headers, get(endpoint)).
 
 
 
@@ -183,7 +231,7 @@ authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     Datestamp = string:left(Amzdate, 8),
 
     H = [{"x-amz-date", Amzdate},
-         {"host", ?HOST},
+         {"host", get(host)},
          {"x-amz-target", Amztarget}],
 
     % 1. Create the Canonical Request
@@ -191,12 +239,12 @@ authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     CanRequest = canonical_request(?METHOD, H, ReqParam, Uri, Qs, SigHeaders),
                                                                             
     % 2. Create the String to Sign
-    CredentialScope = credential_scope(Datestamp, ?REGION, ?SERVICE),
+    CredentialScope = credential_scope(Datestamp, get(region), get(service)),
     StringToSign = string_to_sign(Alg, Amzdate, CredentialScope, CanRequest),
 
     % 3. Calculate the AWS Signature Version 4
     SecretKey = get_secret_key(),
-    SigningKey = get_signature_key(SecretKey, Datestamp, ?REGION, ?SERVICE),
+    SigningKey = get_signature_key(SecretKey, Datestamp, get(region), get(service)),
     Signature = base16(crypto:hmac(sha256, SigningKey, StringToSign)),
     
     % 4. Create the Authorization header
@@ -306,9 +354,12 @@ format_iso8601() ->
                     [Year, Month, Day, Hour, Min, Sec] )).
 
 
-
-make_target(Command) ->
+make_api_target(Command) ->
     ?API_VERSION ++ Command.
+
+make_api_stream_target(Command) ->
+    ?API_SVERSION ++ Command.
+
 
 get_access_key()->
     os:getenv("AWS_ACCESS_KEY_ID").
