@@ -5,7 +5,8 @@ A Library module for interacting with Amazon's DynamoDB.
 
 DynamoDB functions are converted to underscore_case functions of arity 1.
 The parameter is JSON as defined by the DynamoDB API, and the returns are
-map versions of the DynamoDB, JSON returns. 
+either {ok, #{...}} or {error, #{...}) where the maps are map versions of
+the DynamoDB, JSON returns. 
 
 The batch functions (batch_get_item/1 and batch_write_item/1) can return
 partial results. The unprocessed items will be resubmitted so these
