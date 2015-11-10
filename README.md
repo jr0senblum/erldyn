@@ -3,7 +3,7 @@ erldyn
 
 A Library module for interacting with Amazon's DynamoDB.
 
-DynamoDb functions are converted to underscore_case functions of arity 1.
+DynamoDB functions are converted to underscore_case functions of arity 1.
 The parameter is JSON as defined by the DynamoDB API, and the returns are
 map versions of the DynamoDB, JSON returns. 
 
