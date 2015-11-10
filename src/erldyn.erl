@@ -10,13 +10,13 @@
 %%% 
 %%% The batch functions (batch_get_item/1 and batch_write_item/1) can return
 %%% partial results. The unprocessed items will be resubmitted so these
-%%% functions return a list of maps - one for each returned partial results.
+%%% functions return a list of maps - one for each returned partial result.
 %%%
-%%% Exponentional back-off is used such that appropriate failures or partial
-%%% results are retried according to the back-off algorithm, not to exceed one
-%%% minute total for the opperation.
+%%% Exponentional back-off is used such that appropriate failures, or partial
+%%% results, are retried according to the back-off algorithm, not to exceed one
+%%% minute total for the entire operation.
 %%%
-%%% All http opperations are PUTS and Version 4 of the Signature authorizaion
+%%% All http operations are PUTS, and Version 4 of the Signature authorizaion
 %%% header is used.
 %%%
 %%% @version {@version}
@@ -30,6 +30,7 @@
 
 -export([config/1]).
 
+% dynamodb api
 -export([batch_get_item/1,
          batch_write_item/1,
          create_table/1,
@@ -44,7 +45,11 @@
          update_item/1,
          update_table/1]).
 
--export([list_streams/1]).
+% dynamodb stream api
+-export([describe_stream/1,
+         get_records/1,
+         get_shard_iterator/1,
+         list_streams/1]).
 
 
 -define(METHOD, "POST").
@@ -150,6 +155,16 @@ update_item(JSON) ->  execute_command("UpdateItem", JSON).
 -spec update_table(JSON::string()) -> results().
 update_table(JSON) ->  execute_command("UpdateTable", JSON).
 
+
+
+-spec describe_stream(JSON::string()) -> results().
+describe_stream(JSON) ->  execute_command("DescribeStream", JSON, stream).
+
+-spec get_records(JSON::string()) -> results().
+get_records(JSON) ->  execute_command("GetRecords", JSON, stream).
+
+-spec get_shard_iterator(JSON::string()) -> results().
+get_shard_iterator(JSON) ->  execute_command("GetShardIterator", JSON, stream).
 
 -spec list_streams(JSON::string()) -> results().
 list_streams(JSON) ->  execute_command("ListStreams", JSON, stream).

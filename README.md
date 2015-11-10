@@ -9,13 +9,13 @@ map versions of the DnamoDB JSON returns.
 
 The batch functions (batch_get_item/1 and batch_write_item/1) can return
 partial results. The unprocessed items will be resubmitted so these
-functions return a list of maps - one for each returned partial results.
+functions return a list of maps - one for each returned partial result.
 
-Exponentional back-off is used such that appropriate failures or partial
-results are retried according to the back-off algorithm, not to exceed one
-minute total for the opperation.
+Exponentional back-off is used such that appropriate failures, or partial
+results, are retried according to the back-off algorithm, not to exceed one
+minute total for the entire operation.
 
-All http opperations are PUTS and Version 4 of the Signature authorizaion
+All http operations are PUTS, and Version 4 of the Signature authorizaion
 header is used.
 
 
