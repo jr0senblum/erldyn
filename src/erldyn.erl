@@ -21,12 +21,12 @@
 %%% All http operations are PUTS, and Version 4 of the Signature authorizaion
 %%% header is used.
 %%%
-%%% Convenience methods (new_tale/3, save_table/1, and add_parameter/3) are 
+%%% Convenience methods (new_table/3, save_table/1, and add_parameter/3) are 
 %%% provided for simplifying the process of building the correct strcture
-%%% for defining and creating atable.
+%%% for defining and creating tables.
 %%%
-%%% Secret Key and Access Keys can be passed a map via config/1, if not found
-%%% there, the os environment is interrogated for AWS_ACCESS_KEY_ID, and
+%%% Secret Key and Access Keys can be passed via a map and config/1, if not 
+%%% there the os environment is interrogated for AWS_ACCESS_KEY_ID, and
 %%% AWS_SECRET_ACCESS_KEY.
 %%%
 %%% The DynamoDB Endpoint is provided via the same config/1 map parameter, and

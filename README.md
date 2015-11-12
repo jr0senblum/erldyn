@@ -10,9 +10,9 @@ partial results. The unprocessed items will be resubmitted automatically,
 consequently, these functions return a list of maps - one for each partial 
 result.
 
-Convenience methods (new_tale/3, save_table/1, and add_parameter/3) are 
+Convenience methods (new_table/3, save_table/1, and add_parameter/3) are 
 provided for simplifying the process of building the correct strcture
-for defining and creating atable.
+for defining and creating tables.
 
 Exponentional back-off is used such that appropriate failures, or partial
 results, are retried according to an exponential,  back-off algorithm, not 
@@ -21,8 +21,8 @@ to exceed one minute total for the entire operation.
 All http operations are PUTS, and Version 4 of the Signature authorizaion
 header is used.
 
-Secret Key and Access Keys can be passed a map via config/1, if not found
-there, the os environment is interrogated for AWS_ACCESS_KEY_ID, and
+Secret Key and Access Keys can be passed via map and config/1, if not found
+the os environment is interrogated for AWS_ACCESS_KEY_ID, and
 AWS_SECRET_ACCESS_KEY.
 
 The DynamoDB Endpoint is provided via the same config/1 map parameter, and
