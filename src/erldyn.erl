@@ -6,12 +6,13 @@
 %%%
 %%% DynamoDB functions are converted to underscore_case functions of arity 1.
 %%% The parameter is JSON as defined by the DynamoDB API, and the returns are
-%%% either {ok, #{...}} or {error, #{...}) where the maps are map  versions of
-%%% the DynamoDB, JSON returns. 
+%%% either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) where the 
+%%% maps are map versions of DynamoDB, JSON returns. 
 %%%
 %%% The batch functions (batch_get_item/1 and batch_write_item/1) can return
-%%% partial results. The unprocessed items will be resubmitted so these
-%%% functions return a list of maps - one for each returned, partial result.
+%%% partial results. The unprocessed items will be resubmitted automatically,
+%%% consequently, these functions return a list of maps - one for each partial 
+%%% result.
 %%%
 %%% Exponentional back-off is used such that appropriate failures, or partial
 %%% results, are retried according to an exponential,  back-off algorithm, not 
@@ -20,13 +21,44 @@
 %%% All http operations are PUTS, and Version 4 of the Signature authorizaion
 %%% header is used.
 %%%
+%%% Convenience methods (new_tale/3, save_table/1, and add_parameter/3) are 
+%%% provided for simplifying the process of building the correct strcture
+%%% for defining and creating atable.
+%%%
+%%% Secret Key and Access Keys can be passed a map via config/1, if not found
+%%% there, the os environment is interrogated for AWS_ACCESS_KEY_ID, and
+%%% AWS_SECRET_ACCESS_KEY.
+%%%
+%%% The DynamoDB Endpoint is provided via the same config/1 map parameter, and
+%%% is parsed to determine service, streaming service, host and region. 
+%%%
+%%% PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1 <br/>
+%%%   put(access_key, ...) <br/>
+%%%   put(secret_key, ..) <br/>
+%%%   put(stream_endpoint, ...) <br/>
+%%%   put(endpoint, ...) <br/>
+%%%   put(host, ...) <br/>
+%%%   put(service, ..) <br/>
+%%%   put(region, ..) <br/>
+%%%
 %%% @version {@version}
 %%% @end
 %%% Created : 16 November 2015 by Jim Rosenblum
 %%% ----------------------------------------------------------------------------
 -module(erldyn).
 
--export([config/1]).
+
+% dynamodb sdk
+-export([config/0, config/1,
+
+         new_table/3,
+         save_table/1,
+
+         add_parameter/3,
+         attribute_definitions/1,
+         key_schema/1
+         ]).
+
 
 % dynamodb api
 -export([batch_get_item/1,
@@ -58,9 +90,9 @@
 
                 
 %% -----------------------------------------------------------------------------
-%% @doc Use values within map for Host, and optionally,  Key and Secret which
+%% @doc Use values within map for Host, and optionally, Key and Secret which
 %% can alternatively be provided via exported envionment variables:
-%% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY".
+%% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY". Start inets and ssl
 %%
 %% PROCESS DICTIONARY IS USED VALUES ARE CHANGED VIA CONFIG/1
 %%   put(access_key, ...)
@@ -89,8 +121,18 @@ config(Config) ->
     put(region, Region),
     put(service, Service),
     put(stream_endpoint, SEndpoint),   
+    _ = inets:start(),
+    _ = ssl:start(),
     ok.
 
+
+%% -----------------------------------------------------------------------------
+%% @doc Convenience function for config(#{}).
+%% @see config/1
+%%
+-spec config() -> ok.
+config() ->
+    config(#{}).
 
 
 %% -----------------------------------------------------------------------------
@@ -304,7 +346,7 @@ authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     StringToSign = string_to_sign(Alg, Amzdate, CredentialScope, CanRequest),
 
     % 3. Calculate the AWS Signature Version 4
-    SecretKey = get_secret_key(),
+    SecretKey = get(secret_key),
     SigningKey = get_signature_key(SecretKey, Datestamp, get(region), get(service)),
     Signature = base16(crypto:hmac(sha256, SigningKey, StringToSign)),
     
@@ -390,7 +432,7 @@ get_signature_key(Key, Date, Region, Service) ->
 
 %% Create the Authorization Header
  auth_header(Alg, Scope, SignedHeaders, Sig) ->
-    Access = get_access_key(),
+    Access = get(access_key),
     [Alg, " ", "Credential=", Access, "/", Scope, ", "
     , "SignedHeaders=", SignedHeaders, ", ", "Signature=", Sig].
 
@@ -417,3 +459,52 @@ get_access_key()->
 
 get_secret_key()->
     os:getenv("AWS_SECRET_ACCESS_KEY").
+
+
+-spec new_table(string(), non_neg_integer(), non_neg_integer()) -> #{}.
+new_table(TblNm, RdCpctyUnts, WrtCpctyUnts) ->
+    #{<<"TableName">> => list_to_binary(TblNm),
+      <<"ProvisionedThroughput">> => 
+          #{<<"ReadCapacityUnits">> => RdCpctyUnts,
+            <<"WriteCapacityUnits">> => WrtCpctyUnts
+           }
+     }.
+
+-spec save_table(#{}) -> {error, #{}} | {ok, string(), #{}}.
+save_table(Table) ->
+    case erldyn:create_table(jsone:encode(Table)) of
+        {ok,#{<<"TableDescription">> :=  #{<<"TableStatus">> := Status}} = R} ->
+            {ok, Status, R};
+        {error, _} = Error ->
+            Error
+    end.
+             
+
+-spec add_parameter(#{}, attribute_definitions | key_schema, list())-> #{}.
+add_parameter(Table, Parameter, L) when is_list(L) ->
+    Att = erldyn:Parameter(L),
+    insert(Table, Parameter, Att).
+
+
+insert(Table, attribute_definitions, Attrbts) ->
+    maps:put(<<"AttributeDefinitions">>, Attrbts, Table);
+insert(Table, key_schema, Schma) ->
+    maps:put(<<"KeySchema">>, Schma, Table).
+
+
+-spec attribute_definitions(list()) -> [#{}].
+attribute_definitions(L) ->
+    lists:reverse(lists:foldl(fun({N, T}, Acc) -> 
+                                      [#{<<"AttributeName">> => list_to_binary(N), 
+                                         <<"AttributeType">> => list_to_binary(T)} | Acc] end,
+                              [],
+                              L)).
+
+
+-spec key_schema(list()) -> [#{}].
+key_schema(L) ->
+    lists:reverse(lists:foldl(fun({N, T}, Acc) -> 
+                                      [#{<<"AttributeName">> => list_to_binary(N), 
+                                         <<"KeyType">> => list_to_binary(T)} | Acc] end,
+                              [],
+                              L)).

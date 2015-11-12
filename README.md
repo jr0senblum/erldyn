@@ -1,23 +1,46 @@
-erldyn
+Erldyn
 =====
-
-A Library module for interacting with Amazon's DynamoDB.
-
 DynamoDB functions are converted to underscore_case functions of arity 1.
 The parameter is JSON as defined by the DynamoDB API, and the returns are
-either {ok, #{...}} or {error, #{...}) where the maps are map versions of
-the DynamoDB, JSON returns. 
+either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) where the 
+maps are map versions of DynamoDB, JSON returns. 
 
 The batch functions (batch_get_item/1 and batch_write_item/1) can return
-partial results. The unprocessed items will be resubmitted so these
-functions return a list of maps - one for each returned, partial result.
+partial results. The unprocessed items will be resubmitted automatically,
+consequently, these functions return a list of maps - one for each partial 
+result.
+
+Convenience methods (new_tale/3, save_table/1, and add_parameter/3) are 
+provided for simplifying the process of building the correct strcture
+for defining and creating atable.
 
 Exponentional back-off is used such that appropriate failures, or partial
-results, are retried according to an exponential, back-off algorithm, not 
+results, are retried according to an exponential,  back-off algorithm, not 
 to exceed one minute total for the entire operation.
 
 All http operations are PUTS, and Version 4 of the Signature authorizaion
 header is used.
+
+Secret Key and Access Keys can be passed a map via config/1, if not found
+there, the os environment is interrogated for AWS_ACCESS_KEY_ID, and
+AWS_SECRET_ACCESS_KEY.
+
+The DynamoDB Endpoint is provided via the same config/1 map parameter, and
+is parsed to determine service, streaming service, host and region. 
+
+PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1
+  put(access_key, ...) 
+  put(secret_key, ..) 
+  put(stream_endpoint, ...) 
+  put(endpoint, ...) 
+  put(host, ...) 
+  put(service, ..) 
+  put(region, ..) 
+
+
+Dependencies
+------------
+Lager for logging, jsone for json <--> map translation, and rebar3 for building
 
 
 Build
@@ -25,12 +48,16 @@ Build
 erldyn uses rebar3
 
     $ make compile
+    $ make clean
     $ make doc
     $ make check
+    $ make run
     
 
 Running
 -------
+Assuming that $ make has been previously executed:
+
 
     $ export AWS_SECRET_ACCESS_KEY="WIcKN27iNfefefa3499Pd9iqBpm3hEkas0rsDzoSA"
     $ export AWS_ACCESS_KEY_ID="AKJGIJFFIFATLGIJFJLA"
@@ -41,12 +68,8 @@ Running
 
     Eshell V7.1  (abort with ^G)
 
-    1> application:ensure_all_started(erldyn)
-    ... SNIP ...
-    {ok,[sasl,syntax_tools,compiler,goldrush,lager,jsone,inets,
-     crypto,asn1,public_key,ssl,erldyn]}
-
-    2> erldyn:config(#{endpoint => "https://dynamodb.us-west-2.amazonaws.com/"}).
-    3> erldyn:list_tables("{}").
+    1> erldyn:config(#{endpoint => "https://dynamodb.us-west-2.amazonaws.com/"}).
+    ok
+    2> erldyn:list_tables("{}").
     {ok,#{<<"TableNames">> => [<<"Forum">>,<<"Reply">>,<<"Thread">>,<<"Wizzards">>]}}
     
