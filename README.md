@@ -2,8 +2,8 @@ Erldyn
 =====
 DynamoDB functions are converted to underscore_case functions of arity 1.
 The parameter is JSON as defined by the DynamoDB API, and the returns are
-either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) where the 
-maps are map versions of DynamoDB, JSON returns. 
+either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) <br/> where 
+the maps are map versions of DynamoDB, JSON returns. 
 
 The batch functions (batch_get_item/1 and batch_write_item/1) can return
 partial results. The unprocessed items will be resubmitted automatically,
@@ -28,14 +28,14 @@ AWS_SECRET_ACCESS_KEY.
 The DynamoDB Endpoint is provided via the same config/1 map parameter, and
 is parsed to determine service, streaming service, host and region. 
 
-PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1
-  put(access_key, ...) 
-  put(secret_key, ..) 
-  put(stream_endpoint, ...) 
-  put(endpoint, ...) 
-  put(host, ...) 
-  put(service, ..) 
-  put(region, ..) 
+PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1 
+  put(access_key, ...) <br/>
+  put(secret_key, ..) <br/>
+  put(stream_endpoint, ...) <br/>
+  put(endpoint, ...) <br/>
+  put(host, ...) <br/>
+  put(service, ..) <br/>
+  put(region, ..) <br/>
 
 
 Dependencies

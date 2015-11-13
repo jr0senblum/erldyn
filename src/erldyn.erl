@@ -6,8 +6,8 @@
 %%%
 %%% DynamoDB functions are converted to underscore_case functions of arity 1.
 %%% The parameter is JSON as defined by the DynamoDB API, and the returns are
-%%% either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) where the 
-%%% maps are map versions of DynamoDB, JSON returns. 
+%%% either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) <br/> where 
+%%% the maps are map versions of DynamoDB, JSON returns. 
 %%%
 %%% The batch functions (batch_get_item/1 and batch_write_item/1) can return
 %%% partial results. The unprocessed items will be resubmitted automatically,
@@ -94,14 +94,14 @@
 %% can alternatively be provided via exported envionment variables:
 %% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY". Start inets and ssl
 %%
-%% PROCESS DICTIONARY IS USED VALUES ARE CHANGED VIA CONFIG/1
-%%   put(access_key, ...)
-%%   put(secret_key, ..)
-%%   put(stream_endpoint, ...)
-%%   put(endpoint, ...)
-%%   put(host, ...)
-%%   put(service, ..)
-%%   put(region, ..)
+%% PROCESS DICTIONARY IS USED VALUES ARE CHANGED VIA CONFIG/1 <br/>
+%%   put(access_key, ...) <br/>
+%%   put(secret_key, ..) <br/>
+%%   put(stream_endpoint, ...) <br/>
+%%   put(endpoint, ...) <br/>
+%%   put(host, ...) <br/>
+%%   put(service, ..) <br/>
+%%   put(region, ..) <br/>
 %%
 -spec config(map()) -> ok.
 
@@ -461,6 +461,15 @@ get_secret_key()->
     os:getenv("AWS_SECRET_ACCESS_KEY").
 
 
+
+%% -----------------------------------------------------------------------------
+%% @doc Return a map that contains the appropriate structure for the TableName,
+%% and ProvisionedThroughput parameters. When all required/optional parameters
+%% added to this map, save_table(Map = #{}) will convert the map to the correct 
+%% JSON and utilize create_table/1 to create the DynamoDB table. This is a 
+%% convenience function as an alternatvie to constructing the correct JSON and 
+%% directly using create_table.
+%%
 -spec new_table(string(), non_neg_integer(), non_neg_integer()) -> #{}.
 new_table(TblNm, RdCpctyUnts, WrtCpctyUnts) ->
     #{<<"TableName">> => list_to_binary(TblNm),
@@ -470,7 +479,13 @@ new_table(TblNm, RdCpctyUnts, WrtCpctyUnts) ->
            }
      }.
 
--spec save_table(#{}) -> {error, #{}} | {ok, string(), #{}}.
+
+
+%% -----------------------------------------------------------------------------
+%% @doc Convert the Map into JSON and execute create_table/1.
+%% @see create_table/1
+%%
+-spec save_table(Map::#{}) -> {error, #{}} | {ok, string(), #{}}.
 save_table(Table) ->
     case erldyn:create_table(jsone:encode(Table)) of
         {ok,#{<<"TableDescription">> :=  #{<<"TableStatus">> := Status}} = R} ->
@@ -480,6 +495,14 @@ save_table(Table) ->
     end.
              
 
+%% -----------------------------------------------------------------------------
+%% @doc Add a parameter structure to a Map representing a table specification 
+%% under construction. The Map should be derived from calling new_table/1, add
+%% the parameter being added would be either an attribute or key_schema. In 
+%% either case, the third parameter is expected to be a list of {Name, Type}
+%% values appropriate to the parameter. For example <br/>
+%% add_parameter(Map, key_schema, [{"SomeAttName","SomeKeyType"}]).
+%%
 -spec add_parameter(#{}, attribute_definitions | key_schema, list())-> #{}.
 add_parameter(Table, Parameter, L) when is_list(L) ->
     Att = erldyn:Parameter(L),
@@ -492,6 +515,10 @@ insert(Table, key_schema, Schma) ->
     maps:put(<<"KeySchema">>, Schma, Table).
 
 
+%% -----------------------------------------------------------------------------
+%% Returns a list of maps representing an attribute_definition. Used by 
+%% {@link add_parameter/3. add_parameter}.
+%% 
 -spec attribute_definitions(list()) -> [#{}].
 attribute_definitions(L) ->
     lists:reverse(lists:foldl(fun({N, T}, Acc) -> 
@@ -501,6 +528,10 @@ attribute_definitions(L) ->
                               L)).
 
 
+%% -----------------------------------------------------------------------------
+%% Returns a list of maps representing a key_schema. Used by 
+%% {@link add_parameter/3. add_parameter}.
+%% 
 -spec key_schema(list()) -> [#{}].
 key_schema(L) ->
     lists:reverse(lists:foldl(fun({N, T}, Acc) -> 
@@ -508,3 +539,4 @@ key_schema(L) ->
                                          <<"KeyType">> => list_to_binary(T)} | Acc] end,
                               [],
                               L)).
+
