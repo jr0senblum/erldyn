@@ -15,7 +15,7 @@
                   ssl
                  ]},
   {env,[]},
-  {modules, [erldyn]},
+  {modules, [erldyn, sig_auth]},
   {contributors, []},
   {licenses, []},
   {links, []}

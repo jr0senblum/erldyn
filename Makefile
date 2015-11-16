@@ -7,6 +7,9 @@ REBAR=$(shell which rebar || echo ./rebar3)
 CHECK_FILES=\
      _build/default/lib/erldyn/ebin 
 
+CHECK_F=\
+     _build/default/lib/jsone/ebin 
+
 
 
 all: clean compile
@@ -23,7 +26,7 @@ run:
 
 check: compile
 	dialyzer --no_native --fullpath \
-		$(CHECK_FILES) \
+		$(CHECK_FILES) $(CHECK_F) \
 		-Wunmatched_returns \
 		-Werror_handling 
 
