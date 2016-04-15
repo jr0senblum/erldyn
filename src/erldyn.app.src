@@ -1,6 +1,6 @@
 {application, 'erldyn',
  [{description, "Amazon DynamoDB driver"},
-  {vsn, "v0.5.0"},
+  {vsn, "0.5.0"},
   {registered, []},
   {applications, [
                   kernel,
@@ -9,14 +9,15 @@
                   stdlib, 
                   syntax_tools,
                   compiler,
-                  lager,
                   jsone,
                   inets,
                   ssl
                  ]},
   {env,[]},
   {modules, [erldyn, sig_auth]},
-  {contributors, []},
-  {licenses, []},
-  {links, []}
+  {maintainers, ["Jim Rosenblum"]},
+  {licenses, ["MIT"]},
+  {links,[{"GitHub","https://github.com/jr0senblum/erldyn"}]}
  ]}.
+
+

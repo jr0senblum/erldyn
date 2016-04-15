@@ -1,6 +1,4 @@
-[{<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.7">>},1},
- {<<"jsone">>,
+[{<<"jsone">>,
   {git,"git://github.com/sile/jsone.git",
-       {ref,"30fc35548d88d74deade96c71944f42e57ef981d"}},
-  0},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.0.1">>},0}].
+       {ref,"bfeddc6078ab450e447f361dd71514fb53c4d63a"}},
+  0}].
