@@ -6,7 +6,6 @@
                   kernel,
                   stdlib,
                   sasl, 
-                  stdlib, 
                   syntax_tools,
                   compiler,
                   jsone,
