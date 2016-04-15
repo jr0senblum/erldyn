@@ -59,8 +59,8 @@ Running
 Assuming that $ make has been previously executed:
 
 
-    $ export AWS_SECRET_ACCESS_KEY="WIcKN27iNfefefa3499Pd9iqBpm3hEkas0rsDzoSA"
-    $ export AWS_ACCESS_KEY_ID="AKJGIJFFIFATLGIJFJLA"
+    $ export AWS_SECRET_ACCESS_KEY="WIcKN27efefff499Pd9iqBpm3hEkas0rsDzoSA"
+    $ export AWS_ACCESS_KEY_ID="AKERTJFFIFATLGIJFJLA"
    
     $ make run
     erl -pa _build/default/lib/*/ebin
