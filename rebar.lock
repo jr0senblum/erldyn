@@ -1,4 +1,1 @@
-[{<<"jsone">>,
-  {git,"git://github.com/sile/jsone.git",
-       {ref,"bfeddc6078ab450e447f361dd71514fb53c4d63a"}},
-  0}].
+[{<<"jsone">>,{pkg,<<"jsone">>,<<"1.2.2">>},0}].
