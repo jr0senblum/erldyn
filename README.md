@@ -1,41 +1,78 @@
-Erldyn
-=====
-DynamoDB functions are converted to underscore_case functions of arity 1.
-The parameter is JSON as defined by the DynamoDB API, and the returns are
-either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) <br/> where 
-the maps are map versions of DynamoDB, JSON returns. 
+#Erldyn
+======
 
+# 
+
+[![hex.pm version](https://img.shields.io/hexpm/v/erldyn.svg)](https://hex.pm/packages/erldyn)
+# 
+
+##DynamoDB API
+DynamoDB functions are converted to underscore_case functions of arity 1:<br/>
+
+* batch_get_item/1,
+* batch_write_item/1,
+* create_table/1,
+* delete_item/1,
+* delete_table/1,
+* describe_table/1,
+* get_item/1,
+* list_tables/1,
+* put_item/1,
+* query/1,
+* scan/1,
+* update_item/1,
+* update_table/1]
+
+The single parameter is JSON as defined by the DynamoDB API, and the returns are
+either: <br/>
+
+* {ok, #{...}}, 
+* [{ok, #{...}}, ...], 
+* or {error, #{...}) 
+
+where the maps are map versions of DynamoDB, JSON returns. 
+
+###Batch Functions
 The batch functions (batch_get_item/1 and batch_write_item/1) can return
 partial results. The unprocessed items will be resubmitted automatically,
 consequently, these functions return a list of maps - one for each partial 
 result.
 
+##Convenience Methods
 Convenience methods (new_table/3, save_table/1, and add_parameter/3) are 
 provided for simplifying the process of building the correct strcture
 for defining and creating tables.
 
+
+##Exponential Back-Off
 Exponentional back-off is used such that appropriate failures, or partial
 results, are retried according to an exponential,  back-off algorithm, not 
 to exceed one minute total for the entire operation.
 
+##Authorization
 All http operations are PUTS, and Version 4 of the Signature authorizaion
 header is used.
 
-Secret Key and Access Keys can be passed via map and config/1, if not found
-the os environment is interrogated for AWS_ACCESS_KEY_ID, and
-AWS_SECRET_ACCESS_KEY.
+Secret Key and Access Keys can be fetched form OS environment variables 
+(AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY) or set/changed via config/1.
 
-The DynamoDB Endpoint is provided via the same config/1 map parameter, and
+The DynamoDB Endpoint is provided via the same config/1 function, and
 is parsed to determine service, streaming service, host and region. 
 
-PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1 
-  put(access_key, ...) <br/>
-  put(secret_key, ..) <br/>
-  put(stream_endpoint, ...) <br/>
-  put(endpoint, ...) <br/>
-  put(host, ...) <br/>
-  put(service, ..) <br/>
-  put(region, ..) <br/>
+    => ConfigMap = #{endpoint => "https://dynamodb.us-west-2.amazonaws.com/",
+                  access_key => "AKIAIX5A77AFFFW7JLA",
+                  secret_key => "WIcKN27iNhkvsaEtGgPd9iqBFFFhEkas0rsDzoSA"}.
+    => erldyn:config(ConfigMap).
+    => ok
+
+PROCESS DICTIONARY IS USED:  <br/>
+*   put(access_key, ...) <br/>
+*   put(secret_key, ..) <br/>
+*   put(stream_endpoint, ...) <br/>
+*   put(endpoint, ...) <br/>
+*   put(host, ...) <br/>
+*   put(service, ..) <br/>
+*   put(region, ..) <br/>
 
 
 Dependencies
