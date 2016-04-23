@@ -115,7 +115,7 @@ config(Config) ->
     TokenizedHost = string:tokens(Host, "."),
     Service = lists:nth(1,TokenizedHost),
     Region = lists:nth(2,TokenizedHost),
-    SEndpoint = lists:flatten([Protocol, "//", "streams.",string:join(TokenizedHost, ".")]),
+    SEndpoint = lists:flatten([Protocol, "//", "streams.", string:join(TokenizedHost, ".")]),
 
     put(endpoint, EndPoint),
     put(host, Host),
