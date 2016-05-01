@@ -109,6 +109,7 @@
 config(Config) ->
     put(access_key, maps:get(access_key, Config, get_access_key())),
     put(secret_key, maps:get(secret_key, Config, get_secret_key())),
+    put(token, maps:get(token, Config, undefined)),
 
     EndPoint = maps:get(endpoint, Config, ?ENDPOINT),
     [Protocol, Host] = string:tokens(EndPoint,"//"),
@@ -421,3 +422,6 @@ post_msg(PostBody, Headers, EndPoint)->
                   {EndPoint, Headers, ContentType, PostBody}, 
                   HTTPOptions, Options).
  
+
+credential() ->
+    httpc:requst(get, "htto

@@ -51,10 +51,17 @@ authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     Amzdate = format_iso8601(),
     Datestamp = string:left(Amzdate, 8),
 
-    H = [{"x-amz-date", Amzdate},
+    H0 = [{"x-amz-date", Amzdate},
          {"host", get(host)},
          {"x-amz-target", Amztarget}],
 
+    H = case get(token) of
+             undefined ->
+                 H0;
+             Token ->
+                 [{"x-amz-security-token", Token} | H0]
+         end,
+    
     % 1. Create the Canonical Request
     SigHeaders = signed_headers(H),
     CanRequest = canonical_request(?METHOD, H, ReqParam, Uri, Qs, SigHeaders),
