@@ -25,9 +25,12 @@
 %%% provided for simplifying the process of building the correct strcture
 %%% for defining and creating tables.
 %%%
-%%% Secret Key and Access Keys can be passed via a map and config/1, if not 
-%%% there the os environment is interrogated for AWS_ACCESS_KEY_ID, and
+%%% Secret Key, Access Keys and Token can be passed via a map and config/1, if 
+%%% not there the os environment is interrogated for AWS_ACCESS_KEY_ID and
 %%% AWS_SECRET_ACCESS_KEY.
+%%%
+%%% If AWS Security Token Service is being used then the Token can only 
+%%% be supplied via the config map.
 %%%
 %%% The DynamoDB Endpoint is provided via the same config/1 map parameter, and
 %%% is parsed to determine service, streaming service, host and region. 
@@ -35,6 +38,7 @@
 %%% PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1 <br/>
 %%%   put(access_key, ...) <br/>
 %%%   put(secret_key, ..) <br/>
+%%%   put(token, ..) <br/>
 %%%   put(stream_endpoint, ...) <br/>
 %%%   put(endpoint, ...) <br/>
 %%%   put(host, ...) <br/>
@@ -91,18 +95,21 @@
 
                 
 %% -----------------------------------------------------------------------------
-%% @doc Use values within map for Host, and optionally, Key and Secret which
-%% can alternatively be provided via exported envionment variables:
-%% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY". Start inets and ssl
+%% @doc Use values within map for Host, and optionally, Key, Secret and Token.
+%% Key and Secret can alternatively be provided via exported envionment variables:
+%% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY". 
 %%
 %% PROCESS DICTIONARY IS USED VALUES ARE CHANGED VIA CONFIG/1 <br/>
 %%   put(access_key, ...) <br/>
 %%   put(secret_key, ..) <br/>
+%%   put(token, ..) <br/>
 %%   put(stream_endpoint, ...) <br/>
 %%   put(endpoint, ...) <br/>
 %%   put(host, ...) <br/>
 %%   put(service, ..) <br/>
 %%   put(region, ..) <br/>
+%%
+%% Input map #{access_key, secret_key, token, endpoint}
 %%
 -spec config(map()) -> ok.
 
@@ -356,8 +363,12 @@ execute_command(Command, JSON, IsStream) ->
     ReqParam = JSON,
     Uri = "/",
     QS = "",
-    Headers = sig_auth:authorization_header(Target, ReqParam, Uri, QS),
-    back_off_post(1, ReqParam, Headers, Endpoint).
+    case sig_auth:authorization_header(Target, ReqParam, Uri, QS) of
+        {error, _} = E ->
+            E;
+        Headers ->
+            back_off_post(1, ReqParam, Headers, Endpoint)
+    end.
 
 
 get_endpoint(stream) ->
@@ -423,5 +434,3 @@ post_msg(PostBody, Headers, EndPoint)->
                   HTTPOptions, Options).
  
 
-credential() ->
-    httpc:requst(get, "htto

@@ -44,9 +44,22 @@
 %% Calculate the authorization header per Amazon's V4 Signature instructions.
 %%
 -spec authorization_header(string(), JSON::string(), string(), string()) -> 
-                                  [{string(), string()| non_neg_integer()}].
+                                  [{string(), string()| non_neg_integer()}] | 
+                                  {error, #{}}.
+
 
 authorization_header(Amztarget, ReqParam, Uri, Qs) ->
+    try 
+        authorization_header_(Amztarget, ReqParam, Uri, Qs)
+    catch
+        _:E ->
+            {error, #{authorization_error => E}}
+    end.
+            
+            
+
+
+authorization_header_(Amztarget, ReqParam, Uri, Qs) ->
     Alg = "AWS4-HMAC-SHA256",    
     Amzdate = format_iso8601(),
     Datestamp = string:left(Amzdate, 8),

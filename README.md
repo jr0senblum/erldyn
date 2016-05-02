@@ -56,18 +56,23 @@ header is used.
 Secret Key and Access Keys can be fetched form OS environment variables 
 (AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY) or set/changed via config/1.
 
+If AWS Security Token Service is being used then the Token can only 
+be supplied via the config map.
+
 The DynamoDB Endpoint is provided via the same config/1 function, and
 is parsed to determine service, streaming service, host and region. 
 
     => ConfigMap = #{endpoint => "https://dynamodb.us-west-2.amazonaws.com/",
                   access_key => "AKIAIX5A77AFFFW7JLA",
-                  secret_key => "WIcKN27iNhkvsaEtGgPd9iqBFFFhEkas0rsDzoSA"}.
+                  secret_key => "WIcKN27iNhkvsaEtGgPd9iqBFFFhEkas0rsDzoSA",
+                  token => "XXXXXXXXXXXXXXXXXX"}.
     => erldyn:config(ConfigMap).
     => ok
 
 PROCESS DICTIONARY IS USED:  <br/>
 *   put(access_key, ...) <br/>
 *   put(secret_key, ..) <br/>
+*   put(token, ..) <br/>
 *   put(stream_endpoint, ...) <br/>
 *   put(endpoint, ...) <br/>
 *   put(host, ...) <br/>
