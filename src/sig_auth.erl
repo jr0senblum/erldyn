@@ -35,9 +35,9 @@
 
 
 
-%%%===================================================================
+%%% ============================================================================
 %%% API
-%%%===================================================================
+%%% ============================================================================
 
 
 %% -----------------------------------------------------------------------------
@@ -57,23 +57,13 @@ authorization_header(Amztarget, ReqParam, Uri, Qs) ->
     end.
             
             
-
-
 authorization_header_(Amztarget, ReqParam, Uri, Qs) ->
     Alg = "AWS4-HMAC-SHA256",    
     Amzdate = format_iso8601(),
     Datestamp = string:left(Amzdate, 8),
 
-    H0 = [{"x-amz-date", Amzdate},
-         {"host", get(host)},
-         {"x-amz-target", Amztarget}],
-
-    H = case get(token) of
-             undefined ->
-                 H0;
-             Token ->
-                 [{"x-amz-security-token", Token} | H0]
-         end,
+    % 0. Start with the headers
+    H = headers(Amzdate, Amztarget),
     
     % 1. Create the Canonical Request
     SigHeaders = signed_headers(H),
@@ -85,7 +75,10 @@ authorization_header_(Amztarget, ReqParam, Uri, Qs) ->
 
     % 3. Calculate the AWS Signature Version 4
     SecretKey = get(secret_key),
-    SigningKey = get_signature_key(SecretKey, Datestamp, get(region), get(service)),
+    SigningKey = get_signature_key(SecretKey, 
+                                   Datestamp, 
+                                   get(region), 
+                                   get(service)),
     Signature = base16(crypto:hmac(sha256, SigningKey, StringToSign)),
     
     % 4. Create the Authorization header
@@ -95,9 +88,23 @@ authorization_header_(Amztarget, ReqParam, Uri, Qs) ->
 
 
 
-%%%===================================================================
+%%% ============================================================================
 %%% Internal functions
-%%%===================================================================
+%%% ============================================================================
+
+
+%% List of relevant headers.
+headers(Amzdate, Amztarget) ->
+    H = [{"x-amz-date", Amzdate},
+         {"host", get(host)},
+         {"x-amz-target", Amztarget}],
+    
+    case get(token) of
+        undefined ->
+            H;
+        Token ->
+            [{"x-amz-security-token", Token} | H]
+    end.
 
 
 %% To create the canonical headers list, convert all header names to lowercase 

@@ -6,31 +6,31 @@
 %%%
 %%% DynamoDB functions are converted to underscore_case functions of arity 1.
 %%% The parameter is JSON as defined by the DynamoDB API, and the returns are
-%%% either {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) <br/> where 
-%%% the maps are map versions of DynamoDB, JSON returns. 
+%%% either: {ok, #{...}}, [{ok, #{...}}, ...], or {error, #{...}) where the
+%%% maps are map versions of DynamoDB, JSON returns. 
 %%%
 %%% The batch functions (batch_get_item/1 and batch_write_item/1) can return
-%%% partial results. The unprocessed items will be resubmitted automatically,
-%%% consequently, these functions return a list of maps - one for each partial 
+%%% partial results. The unprocessed items will be resubmitted automatically.
+%%% consequently, these functions return a list of maps - one for each partial
 %%% result.
-%%%
-%%% Exponentional back-off is used such that appropriate failures, or partial
-%%% results, are retried according to an exponential,  back-off algorithm, not 
-%%% to exceed one minute total for the entire operation.
-%%%
-%%% All http operations are PUTS, and Version 4 of the Signature authorizaion
-%%% header is used.
 %%%
 %%% Convenience methods (new_table/3, save_table/1, and add_parameter/3) are 
 %%% provided for simplifying the process of building the correct strcture
 %%% for defining and creating tables.
 %%%
-%%% Secret Key, Access Keys and Token can be passed via a map and config/1, if 
-%%% not there the os environment is interrogated for AWS_ACCESS_KEY_ID and
-%%% AWS_SECRET_ACCESS_KEY.
+%%% Exponentional back-off is used such that appropriate failures, or partial
+%%% results, are retried according to an exponential, back-off algorithm, not 
+%%% to exceed one minute total for the entire operation.
+%%%
+%%% All http operations are PUTS, and Version 4 of the Signature authorizaion
+%%% header is used.
+%%%
+%%% Secret Key, Access Keys and Token can be establishd via config/1. If 
+%%% these values are not supplied, the os environment is interrogated for 
+%%% AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
 %%%
 %%% If AWS Security Token Service is being used then the Token can only 
-%%% be supplied via the config map.
+%%% be supplied via the config/1 parameter (a Map).
 %%%
 %%% The DynamoDB Endpoint is provided via the same config/1 map parameter, and
 %%% is parsed to determine service, streaming service, host and region. 
