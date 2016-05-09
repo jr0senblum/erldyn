@@ -25,12 +25,12 @@
 %%% All http operations are PUTS, and Version 4 of the Signature authorizaion
 %%% header is used.
 %%%
-%%% Secret Key, Access Keys and Token can be establishd via config/1. If 
+%%% Secret Key, and Access Keys can be establishd via config/1. If 
 %%% these values are not supplied, the os environment is interrogated for 
 %%% AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
 %%%
-%%% If AWS Security Token Service is being used then the Token can only 
-%%% be supplied via the config/1 parameter (a Map).
+%%% If AWS Security Token Service is being used then credentials are fetched
+%%% automatically.
 %%%
 %%% The DynamoDB Endpoint is provided via the same config/1 map parameter, and
 %%% is parsed to determine service, streaming service, host and region. 

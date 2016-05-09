@@ -36,8 +36,8 @@
 start(_StartType, _StartArgs) ->
     case erldyn_sup:start_link() of
         {ok, Pid} ->
-            _ = inets:start(),
-            _ = ssl:start(),
+            inets:start(),
+            ssl:start(),
             {ok, Pid};
         Error ->
             Error
