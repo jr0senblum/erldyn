@@ -34,6 +34,9 @@
 -define(METHOD, "POST").
 
 
+% definition of the credential record.
+-include("../include/records.hrl").
+
 
 %%% ============================================================================
 %%% API
@@ -64,23 +67,23 @@ authorization_header_(Amztarget, ReqParam, Uri, Qs) ->
 
     % 0. Start with the headers
     H = headers(Amzdate, Amztarget),
-    
+
     % 1. Create the Canonical Request
     SigHeaders = signed_headers(H),
     CanRequest = canonical_request(?METHOD, H, ReqParam, Uri, Qs, SigHeaders),
-                                                                            
+
     % 2. Create the String to Sign
-    CredentialScope = credential_scope(Datestamp, get(region), get(service)),
+    CredentialScope = credential_scope(Datestamp, erldyn_aim:get(region), erldyn_aim:get(service)),
     StringToSign = string_to_sign(Alg, Amzdate, CredentialScope, CanRequest),
 
     % 3. Calculate the AWS Signature Version 4
-    SecretKey = get(secret_key),
+    SecretKey = erldyn_aim:get_credential(secret_key),
     SigningKey = get_signature_key(SecretKey, 
                                    Datestamp, 
-                                   get(region), 
-                                   get(service)),
+                                   erldyn_aim:get(region), 
+                                   erldyn_aim:get(service)),
     Signature = base16(crypto:hmac(sha256, SigningKey, StringToSign)),
-    
+
     % 4. Create the Authorization header
     Auth = auth_header(Alg, CredentialScope, SigHeaders, Signature),
 
@@ -96,10 +99,10 @@ authorization_header_(Amztarget, ReqParam, Uri, Qs) ->
 %% List of relevant headers.
 headers(Amzdate, Amztarget) ->
     H = [{"x-amz-date", Amzdate},
-         {"host", get(host)},
+         {"host", erldyn_aim:get(host)},
          {"x-amz-target", Amztarget}],
     
-    case get(token) of
+    case erldyn_aim:get_credential(token) of
         undefined ->
             H;
         Token ->
@@ -183,7 +186,7 @@ get_signature_key(Key, Date, Region, Service) ->
 
 %% Create the Authorization Header
  auth_header(Alg, Scope, SignedHeaders, Sig) ->
-    Access = get(access_key),
+    Access = erldyn_aim:get_credential(access_key),
     [Alg, " ", "Credential=", Access, "/", Scope, ", "
     , "SignedHeaders=", SignedHeaders, ", ", "Signature=", Sig].
 

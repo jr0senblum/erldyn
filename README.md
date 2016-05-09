@@ -49,36 +49,51 @@ Exponentional back-off is used such that appropriate failures, or partial
 results, are retried according to an exponential,  back-off algorithm, not 
 to exceed one minute total for the entire operation.
 
+
+###Configuration
+erldyn:config(#{}) is used to set the dynamoDb endpoint (i.e., "https://dynamodb.us-west-2.amazonaws.com/"),
+and to optionally set the Amazon, access-key and secret-key assumin AWS Securtiy Token Service 
+is not being used. For example: </br>
+
+    => ConfigMap = #{endpoint => "https://dynamodb.us-west-2.amazonaws.com/",
+                  access_key => "XXXXXXXXXXX",
+                  secret_key => "YYYYYYYYYY"},
+    => erldyn:config(ConfigMap).
+    => ok
+
+If, AWS AIM services are being used, config/1 is only used to configure the endpoint, and the AIM
+service is used to fetch temporary credentials automatically. The configuration file provides
+the AWS metadata endpoint and a flag indicating that AIM should be used: </br>
+
+    [
+     {erldyn,
+      [
+       %% DynamoDb endpoint and metadata uri.
+       {endpoint, "https://dynamodb.us-west-2.amazonaws.com/"},
+       {metadata, "http://169.254.169.254/latest/meta-data/iam/security-credentials/"},
+       {aim, false}
+      ]}
+     ].
+
 ##Authorization
 All http operations are PUTS, and Version 4 of the Signature authorizaion
 header is used.
 
-Secret Key and Access Keys can be fetched form OS environment variables 
+Secret Key and Access Keys can be fetched from OS environment variables 
 (AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY) or set/changed via config/1.
 
-If AWS Security Token Service is being used then the Token can only 
+If AWS Security Token Service is being used then only the endpointthe Token can only 
 be supplied via the config map.
 
 The DynamoDB Endpoint is provided via the same config/1 function, and
 is parsed to determine service, streaming service, host and region. 
 
     => ConfigMap = #{endpoint => "https://dynamodb.us-west-2.amazonaws.com/",
-                  access_key => "AKIAIX5A77AFFFW7JLA",
-                  secret_key => "WIcKN27iNhkvsaEtGgPd9iqBFFFhEkas0rsDzoSA",
-                  token => "XXXXXXXXXXXXXXXXXX"}.
+                  access_key => "XXXXXXXXXXX",
+                  secret_key => "YYYYYYYYYY",
+                  token => "ZZZZZZZZZZZZ"}.
     => erldyn:config(ConfigMap).
     => ok
-
-PROCESS DICTIONARY IS USED:  <br/>
-*   put(access_key, ...) <br/>
-*   put(secret_key, ..) <br/>
-*   put(token, ..) <br/>
-*   put(stream_endpoint, ...) <br/>
-*   put(endpoint, ...) <br/>
-*   put(host, ...) <br/>
-*   put(service, ..) <br/>
-*   put(region, ..) <br/>
-
 
 Dependencies
 ------------

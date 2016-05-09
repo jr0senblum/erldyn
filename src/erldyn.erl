@@ -35,16 +35,6 @@
 %%% The DynamoDB Endpoint is provided via the same config/1 map parameter, and
 %%% is parsed to determine service, streaming service, host and region. 
 %%%
-%%% PROCESS DICTIONARY IS USED,  VALUES ARE CHANGED VIA CONFIG/1 <br/>
-%%%   put(access_key, ...) <br/>
-%%%   put(secret_key, ..) <br/>
-%%%   put(token, ..) <br/>
-%%%   put(stream_endpoint, ...) <br/>
-%%%   put(endpoint, ...) <br/>
-%%%   put(host, ...) <br/>
-%%%   put(service, ..) <br/>
-%%%   put(region, ..) <br/>
-%%%
 %%% @version {@version}
 %%% @end
 %%% Created : 16 November 2015 by Jim Rosenblum
@@ -57,7 +47,7 @@
          new_table/3,
          save_table/1,
          add_parameter/3
-         ]).
+        ]).
 
 
 % internal functions called by add_parameter so need to be exported
@@ -93,30 +83,21 @@
 -define(API_SVERSION, "DynamoDBStreams_20120810.").
 
 
+% definition of the credential record.
+-include("../include/records.hrl").
+
                 
 %% -----------------------------------------------------------------------------
 %% @doc Use values within map for Host, and optionally, Key, Secret and Token.
 %% Key and Secret can alternatively be provided via exported envionment variables:
 %% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY". 
 %%
-%% PROCESS DICTIONARY IS USED VALUES ARE CHANGED VIA CONFIG/1 <br/>
-%%   put(access_key, ...) <br/>
-%%   put(secret_key, ..) <br/>
-%%   put(token, ..) <br/>
-%%   put(stream_endpoint, ...) <br/>
-%%   put(endpoint, ...) <br/>
-%%   put(host, ...) <br/>
-%%   put(service, ..) <br/>
-%%   put(region, ..) <br/>
-%%
-%% Input map #{access_key, secret_key, token, endpoint}
+%% Input map #{access_key, secret_key, endpoint}
 %%
 -spec config(map()) -> ok.
 
 config(Config) ->
-    put(access_key, maps:get(access_key, Config, get_access_key())),
-    put(secret_key, maps:get(secret_key, Config, get_secret_key())),
-    put(token, maps:get(token, Config, undefined)),
+    erldyn_aim:configure(Config),
 
     EndPoint = maps:get(endpoint, Config, ?ENDPOINT),
     [Protocol, Host] = string:tokens(EndPoint,"//"),
@@ -125,13 +106,11 @@ config(Config) ->
     Region = lists:nth(2,TokenizedHost),
     SEndpoint = lists:flatten([Protocol, "//", "streams.", string:join(TokenizedHost, ".")]),
 
-    put(endpoint, EndPoint),
-    put(host, Host),
-    put(region, Region),
-    put(service, Service),
-    put(stream_endpoint, SEndpoint),   
-    _ = inets:start(),
-    _ = ssl:start(),
+    erldyn_aim:put(endpoint, EndPoint),
+    erldyn_aim:put(host, Host),
+    erldyn_aim:put(region, Region),
+    erldyn_aim:put(service, Service),
+    erldyn_aim:put(stream_endpoint, SEndpoint),   
     ok.
 
 
@@ -142,13 +121,6 @@ config(Config) ->
 -spec config() -> ok.
 config() ->
     config(#{}).
-
-
-get_access_key()->
-    os:getenv("AWS_ACCESS_KEY_ID").
-
-get_secret_key()->
-    os:getenv("AWS_SECRET_ACCESS_KEY").
 
 
 
@@ -372,9 +344,9 @@ execute_command(Command, JSON, IsStream) ->
 
 
 get_endpoint(stream) ->
-    get(stream_endpoint);
+    erldyn_aim:get(stream_endpoint);
 get_endpoint(_) ->
-    get(endpoint).
+    erldyn_aim:get(endpoint).
 
 
 get_target(Command, stream) ->
