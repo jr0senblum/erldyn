@@ -1,18 +1,32 @@
 %%% ----------------------------------------------------------------------------
 %%% @author Jim Rosenblum <jrosenblum@jims-mbp.jhs.local>
 %%% @copyright (C) 2016, Jim Rosenblum
-%%% @doc Library module that stores, retrieves and refreshes iam credentials
-%%% which are used by erldyn/dynamoDB.
+%%% @doc Library module that manages the configuration aspects of erldyn: 
+%%% specifically: stores, retrieves and refreshes IAM credentials; stores and
+%%% retrieves conventional credentials if not using IAM; stores and retrieves 
+%%% the DynamoDB Endpoint; parses, stores and retrieves the Host, Region, 
+%%% Stream, etc. from the supplied Endpoint.
 %%% @end
 %%% Created :  20 Apr 2016 by Jim Rosenblum <jrosenblum@jims-mbp.jhs.local>
 %%% ----------------------------------------------------------------------------
 -module(erldyn_aim).
 
 
--export([configure/1, get_credential/1, get/1, put/2]).
+-export([configure/1, 
+         get/1, 
+         get_credential/1,
+         put/2]).
+
+
+-define(ENDPOINT, "https://dynamodb.us-west-2.amazonaws.com/").
+
 
 % definition of the credential record.
--include("../include/records.hrl").
+-record (credentials, 
+         {expiration, 
+          access_key,
+          secret_key,
+          token}).
 
 
 
@@ -21,18 +35,45 @@
 %%% ============================================================================
 
 
+%% -----------------------------------------------------------------------------
+%% Fetch and persist IAM temporary credentials or persist supplied credentials;
+%% parse and persist DynamoDB access parameters (host, region, etc.) from 
+%% the supplied endpoint.
+%% 
 -spec configure(map()) -> ok | error.
 
-configure(Config) ->
+configure(ConfigMap) ->
+    persist_credentials(ConfigMap),
+    config_dynamo_access(ConfigMap),
+    ok.
+
+
+persist_credentials(ConfigMap) ->
     case using_aim() of
         true ->
-            establish_iam_credentials();
+            refresh_iam_credentials();
         false ->
-            Creds = #credentials{access_key = encrypt(maps:get(access_key, Config, get_access_key())),
-                                 secret_key = encrypt(maps:get(secret_key, Config, get_secret_key())),
+            Creds = #credentials{access_key = encrypt(maps:get(access_key, ConfigMap, get_access_key())),
+                                 secret_key = encrypt(maps:get(secret_key, ConfigMap, get_secret_key())),
                                  token = undefined},
             store_credentials(Creds)
     end.
+
+
+config_dynamo_access(ConfigMap)->
+    EndPoint = maps:get(endpoint, ConfigMap, ?ENDPOINT),
+    [Protocol, Host] = string:tokens(EndPoint,"//"),
+    TokenizedHost = string:tokens(Host, "."),
+    Service = lists:nth(1,TokenizedHost),
+    Region = lists:nth(2,TokenizedHost),
+    SEndpoint = lists:flatten([Protocol, "//", "streams.", string:join(TokenizedHost, ".")]),
+
+    erldyn_aim:put(endpoint, EndPoint),
+    erldyn_aim:put(host, Host),
+    erldyn_aim:put(region, Region),
+    erldyn_aim:put(service, Service),
+    erldyn_aim:put(stream_endpoint, SEndpoint).
+
 
 get_access_key()->
     os:getenv("AWS_ACCESS_KEY_ID").
@@ -43,11 +84,78 @@ get_secret_key()->
 
 
 %% -----------------------------------------------------------------------------
-%% Return the encrypted, temporary AWS credentials, else error.
-%%
--spec establish_iam_credentials() -> ok | error | {error, {term(), term()}}.
+%% Get a DynamoDb access, configuration element.
+%% 
+-spec get(Key) -> string() when
+      Key :: endpoint | host | region | service | steam_endpoint.
 
-establish_iam_credentials() ->
+get(Key) ->
+    case ets:lookup(aim_cred, Key) of
+        [{Key, Value}] ->
+            Value;
+        _ ->
+            undefined
+    end.
+
+
+%% -----------------------------------------------------------------------------
+%% Return one of the authorizaion components: secret key, access key or 
+%% token
+%%
+-spec get_credential(secret_key | access_key | token) -> string().
+
+get_credential(Item) ->
+    case using_aim() of
+        true ->
+            refresh_iam_credentials();
+        false ->
+            ok
+    end,
+    case ets:lookup(aim_cred, credentials) of
+        [#credentials{} = Creds] ->
+            get_item(Item, Creds);
+        _ ->
+            errror
+    end.
+
+
+get_item(secret_key, #credentials{secret_key = Secret}) ->
+    binary_to_list(decrypt(Secret));
+
+get_item(access_key, #credentials{access_key = Access}) ->
+    binary_to_list(decrypt(Access));
+
+get_item(token, #credentials{token = undefined}) ->
+            undefined;
+
+get_item(token, #credentials{token = Token}) ->
+    binary_to_list(decrypt(Token)).
+
+
+
+%% -----------------------------------------------------------------------------
+%% Set one of the authorizaion components: secret key, access key or 
+%% token
+%%
+-spec put(Key, Value) -> true when
+      Key :: endpoint | host | region | service | steam_endpoint,
+      Value :: string().
+
+put(Key, Value) ->
+    ets:insert(aim_cred, {Key, Value}).
+
+
+
+%%% ============================================================================
+%%%                        Helper Functions
+%%% ============================================================================
+
+
+
+%% -----------------------------------------------------------------------------
+%% Return the encrypted, temporary AWS credentials. If expired, get new ones.
+%%
+refresh_iam_credentials() ->
     case retrieve_credentials() of
         {ok, Credentials} ->
             case is_current(Credentials) of
@@ -75,7 +183,6 @@ retrieve_credentials() ->
 
 
 is_current(#credentials{expiration = Exp}) ->
-    
     Now = calendar:universal_time(),
     Expiration = remove_milliseconds(ec_date:parse(Exp)),
     Expiration > Now.
@@ -89,6 +196,7 @@ remove_milliseconds({YMD, {H, M, S, _MS}}) ->
 
 using_aim() ->
     application:get_env(erldyn, aim, false).
+
 
 
 % ------------------------------------------------------------------------------
@@ -124,6 +232,7 @@ store_credentials(Credentials) ->
         T:E ->
             {error, {T,E}}
     end.
+
 
 
 % ------------------------------------------------------------------------------
@@ -165,49 +274,8 @@ get_key() ->
 end.
 
 
-
-get_credential(Item) ->
-    case using_aim() of
-        true ->
-            establish_iam_credentials();
-        false ->
-            ok
-    end,
-    case ets:lookup(aim_cred, credentials) of
-        [#credentials{} = Creds] ->
-            get_item(Item, Creds);
-        _ ->
-            errror
-    end.
-
-get_item(secret_key, #credentials{secret_key = Secret}) ->
-    binary_to_list(decrypt(Secret));
-
-get_item(access_key, #credentials{access_key = Access}) ->
-    binary_to_list(decrypt(Access));
-
-get_item(token, #credentials{token = undefined}) ->
-            undefined;
-
-get_item(token, #credentials{token = Token}) ->
-    binary_to_list(decrypt(Token)).
-
-
 decrypt(CipherText) ->
     {ok, X} = application:get_env(erldyn, left),
     State = crypto:stream_init(aes_ctr, X, X),
     {_, PlainText} = crypto:stream_decrypt(State, CipherText),
     PlainText.                                       
-
-
-
-put(Key, Value) ->
-    ets:insert(aim_cred, {Key, Value}).
-
-get(Key) ->
-    case ets:lookup(aim_cred, Key) of
-        [{Key, Value}] ->
-            Value;
-        _ ->
-            undefined
-    end.

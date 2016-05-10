@@ -78,44 +78,29 @@
          list_streams/1]).
 
 
--define(ENDPOINT, "https://dynamodb.us-west-2.amazonaws.com/").
 -define(API_VERSION, "DynamoDB_20120810.").
 -define(API_SVERSION, "DynamoDBStreams_20120810.").
 
 
-% definition of the credential record.
--include("../include/records.hrl").
-
                 
 %% -----------------------------------------------------------------------------
-%% @doc Use values within map for Host, and optionally, Key, Secret and Token.
-%% Key and Secret can alternatively be provided via exported envionment variables:
-%% "AWS_ACCESS_KEY_ID" and "AWS_SECRET_ACCESS_KEY". 
-%%
-%% Input map #{access_key, secret_key, endpoint}
+%% @doc Given a map containing values for the DynamoDB Endpoint and,
+%% potentially, Key and Secret Key, persist the credentials and parse the Host, 
+%% Region, service, etc. from the Endpoint. As an alternative to passing in the 
+%% credentials via config/1, exported environment variables "AWS_ACCESS_KEY_ID"
+%% and "AWS_SECRET_ACCESS_KEY" can be used. If AIM is used, then only supply 
+%% the endppoint. </br> Input map #{access_key, secret_key, endpoint}
 %%
 -spec config(map()) -> ok.
 
 config(Config) ->
     erldyn_aim:configure(Config),
-
-    EndPoint = maps:get(endpoint, Config, ?ENDPOINT),
-    [Protocol, Host] = string:tokens(EndPoint,"//"),
-    TokenizedHost = string:tokens(Host, "."),
-    Service = lists:nth(1,TokenizedHost),
-    Region = lists:nth(2,TokenizedHost),
-    SEndpoint = lists:flatten([Protocol, "//", "streams.", string:join(TokenizedHost, ".")]),
-
-    erldyn_aim:put(endpoint, EndPoint),
-    erldyn_aim:put(host, Host),
-    erldyn_aim:put(region, Region),
-    erldyn_aim:put(service, Service),
-    erldyn_aim:put(stream_endpoint, SEndpoint),   
     ok.
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Convenience function for config(#{}).
+%% @doc Convenience function for config(#{}). Used to pick up credentials from 
+%% the environment or AIM and to utilize the default endpoint.
 %% @see config/1
 %%
 -spec config() -> ok.
