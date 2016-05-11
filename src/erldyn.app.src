@@ -2,7 +2,7 @@
 
 {application, 'erldyn',
  [{description, "Amazon DynamoDB driver"},
-  {vsn, "0.7.0"},
+  {vsn, "0.7.1"},
   {mod, {erldyn_app, []}},
   {registered, [erldyn_app, erldyn_sup, erldyn_ets]},
   {applications, [
