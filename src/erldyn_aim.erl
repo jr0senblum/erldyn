@@ -185,6 +185,7 @@ retrieve_credentials() ->
 is_current(#credentials{expiration = Exp}) ->
     Now = calendar:universal_time(),
     Expiration = remove_milliseconds(ec_date:parse(Exp)),
+    io:format("~p ~p ~p~n",[Expiration, Now, Expiration > Now]),
     Expiration > Now.
 
 
