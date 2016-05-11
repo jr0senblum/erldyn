@@ -171,7 +171,7 @@ refresh_iam_credentials() ->
 
 
 retrieve_credentials() ->
-    try ets:lookup(aim_cred, creds) of
+    try ets:lookup(aim_cred, credentials) of
         [#credentials{} = Credentials] ->
             {ok, Credentials};
         [] ->
@@ -185,7 +185,6 @@ retrieve_credentials() ->
 is_current(#credentials{expiration = Exp}) ->
     Now = calendar:universal_time(),
     Expiration = remove_milliseconds(ec_date:parse(Exp)),
-    io:format("~p ~p ~p~n",[Expiration, Now, Expiration > Now]),
     Expiration > Now.
 
 
