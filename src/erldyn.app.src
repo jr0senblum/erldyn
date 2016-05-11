@@ -1,8 +1,8 @@
 % -*- mode: erlang -*-
 
 {application, 'erldyn',
- [{description, "Amazon DynamoDB driver"},
-  {vsn, "0.7.1"},
+ [{description, "Amazon DynamoDB application"},
+  {vsn, "0.7.2"},
   {mod, {erldyn_app, []}},
   {registered, [erldyn_app, erldyn_sup, erldyn_ets]},
   {applications, [
